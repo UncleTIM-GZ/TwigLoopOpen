@@ -9,7 +9,7 @@ Revises: c001
 from alembic import op
 
 revision = "c002"
-down_revision = "c001"
+down_revision = "c001_add_missing_indexes"
 branch_labels = None
 depends_on = None
 
