@@ -15,8 +15,10 @@ dependencies = [
     "shared-auth",
     "shared-events",
     "shared-observability",
-    "workflows",
 ]
+
+[project.optional-dependencies]
+temporal = ["workflows"]
 
 [build-system]
 requires = ["hatchling"]
@@ -31,4 +33,4 @@ shared-config = { workspace = true }
 shared-auth = { workspace = true }
 shared-events = { workspace = true }
 shared-observability = { workspace = true }
-workflows = { workspace = true }
+# workflows = { workspace = true }  # Optional: install with pip install .[temporal]
