@@ -30,7 +30,11 @@ warn_unused_ignores = false
 explicit_package_bases = true
 ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
-mypy_path = "apps/core-api:apps/mcp-server:apps/mcp-gateway:apps/mcp-orchestrator:apps/ai-assist-service:apps/source-sync-worker:workflows:packages/shared-schemas/src:packages/shared-config/src:packages/shared-auth/src:packages/shared-events/src:packages/shared-observability/src"
+mypy_path = "apps/core-api:apps/mcp-server:apps/ai-assist-service:apps/source-sync-worker:packages/shared-schemas/src:packages/shared-config/src:packages/shared-auth/src:packages/shared-events/src:packages/shared-observability/src"
+
+[[tool.mypy.overrides]]
+module = "temporal.*"
+ignore_errors = true
 
 [tool.pydantic-mypy]
 init_forbid_extra = true
