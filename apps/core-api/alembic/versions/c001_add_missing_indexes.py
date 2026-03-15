@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'c001_add_missing_indexes'
-down_revision: str | Sequence[str] | None = '0b3608505f7c'
+down_revision: str | Sequence[str] | None = 'b001'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
