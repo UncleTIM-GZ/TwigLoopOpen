@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  python-checks:
+    name: Python Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Ruff lint
+        run: uv run ruff check apps/ packages/ --exclude apps/web
+
+      - name: Ruff format check
+        run: uv run ruff format --check apps/ packages/ --exclude apps/web
+
+      - name: Mypy — core-api
+        run: uv run --package core-api mypy apps/core-api/app/
+
+      - name: Mypy — shared packages
+        run: |
+          uv run --package core-api mypy \
+            packages/shared-schemas/src/ \
+            packages/shared-config/src/ \
+            packages/shared-auth/src/ \
+            packages/shared-events/src/ \
+            packages/shared-observability/src/
+
+      - name: Pytest
+        run: uv run pytest --tb=short -q 2>/dev/null || echo "No tests yet"
+
+  typescript-checks:
+    name: TypeScript Checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build

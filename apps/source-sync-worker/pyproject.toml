@@ -1,0 +1,18 @@
+[project]
+name = "source-sync-worker"
+version = "0.1.0"
+description = "External source (GitHub/Gitee) sync worker"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28",
+    "shared-schemas",
+    "shared-config",
+    "shared-events",
+    "shared-observability",
+]
+
+[tool.uv.sources]
+shared-schemas = { workspace = true }
+shared-config = { workspace = true }
+shared-events = { workspace = true }
+shared-observability = { workspace = true }
