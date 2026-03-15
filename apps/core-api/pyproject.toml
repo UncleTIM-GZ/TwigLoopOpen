@@ -33,4 +33,4 @@ shared-config = { workspace = true }
 shared-auth = { workspace = true }
 shared-events = { workspace = true }
 shared-observability = { workspace = true }
-# workflows = { workspace = true }  # Optional: install with pip install .[temporal]
+workflows = { workspace = true }
