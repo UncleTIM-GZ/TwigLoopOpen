@@ -56,23 +56,14 @@ register_draft_tools(mcp)
 
 def main() -> None:
     """Entry point for the MCP server."""
+    import os
+
     parser = argparse.ArgumentParser(description="Twig Loop MCP Server")
     parser.add_argument(
         "--transport",
         choices=["stdio", "sse", "http"],
-        default="stdio",
-        help="MCP transport protocol (default: stdio)",
-    )
-    parser.add_argument(
-        "--host",
-        default="127.0.0.1",
-        help="Host for SSE/HTTP transport (default: 127.0.0.1)",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=8100,
-        help="Port for SSE/HTTP transport (default: 8100)",
+        default=os.getenv("MCP_TRANSPORT", "stdio"),
+        help="MCP transport protocol (default: stdio, env: MCP_TRANSPORT)",
     )
     args = parser.parse_args()
 
@@ -80,12 +71,15 @@ def main() -> None:
     if transport == "http":
         transport = "streamable-http"
 
-    kwargs: dict[str, str | int] = {"transport": transport}
-    if transport in ("sse", "streamable-http"):
-        kwargs["host"] = args.host
-        kwargs["port"] = args.port
+    # For SSE/HTTP, host and port are set via environment variables:
+    #   FASTMCP_HOST (default: 127.0.0.1)
+    #   FASTMCP_PORT (default: 8100)
+    # Or for Railway: PORT env var is mapped to FASTMCP_PORT
+    port = os.getenv("PORT", os.getenv("FASTMCP_PORT", "8100"))
+    os.environ["FASTMCP_PORT"] = port
+    os.environ["FASTMCP_HOST"] = os.getenv("FASTMCP_HOST", "0.0.0.0")
 
-    mcp.run(**kwargs)  # type: ignore[arg-type]
+    mcp.run(transport=transport)  # type: ignore[arg-type]
 
 
 if __name__ == "__main__":
