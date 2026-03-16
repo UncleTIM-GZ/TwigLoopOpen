@@ -1,15 +1,18 @@
 """Twig Loop MCP Server — standard MCP protocol implementation.
 
-Replaces the deprecated mcp-gateway + mcp-orchestrator REST proxy architecture
-with a standard MCP Server using the official `mcp` Python SDK.
-
 Run:
     uv run python -m app.main                    # stdio transport (default)
     uv run python -m app.main --transport sse     # SSE transport
     uv run python -m app.main --transport http    # streamable HTTP transport
+
+Environment variables for SSE/HTTP:
+    FASTMCP_HOST (default: 0.0.0.0)
+    FASTMCP_PORT (default: 8100, or Railway's PORT)
+    CORE_API_BASE_URL (default: http://localhost:8000)
 """
 
 import argparse
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -18,10 +21,10 @@ from mcp.server.fastmcp import FastMCP
 from app.clients.core_api import close_client
 from app.tools.auth_tools import register_auth_tools
 from app.tools.context_tools import register_context_tools
+from app.tools.draft_tools import register_draft_tools
 from app.tools.orchestration_tools import register_orchestration_tools
 from app.tools.preflight_tools import register_preflight_tools
 from app.tools.project_tools import register_project_tools
-from app.tools.draft_tools import register_draft_tools
 from app.tools.quota_tools import register_quota_tools
 
 
@@ -34,30 +37,35 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[None]:
         await close_client()
 
 
-mcp = FastMCP(
-    "Twig Loop",
-    instructions=(
-        "Twig Loop is an AI-native project collaboration platform. "
-        "Use these tools to register, authenticate, create projects, "
-        "structure work packages and task cards, and apply to collaborate."
-    ),
-    lifespan=app_lifespan,
-)
+def create_mcp() -> FastMCP:
+    """Create and configure FastMCP instance.
 
-# Register all tool groups
-register_auth_tools(mcp)
-register_project_tools(mcp)
-register_orchestration_tools(mcp)
-register_quota_tools(mcp)
-register_preflight_tools(mcp)
-register_context_tools(mcp)
-register_draft_tools(mcp)
+    Must be called after environment variables are set so FastMCP Settings
+    picks up FASTMCP_HOST and FASTMCP_PORT correctly.
+    """
+    server = FastMCP(
+        "Twig Loop",
+        instructions=(
+            "Twig Loop is an AI-native project collaboration platform. "
+            "Use these tools to register, authenticate, create projects, "
+            "structure work packages and task cards, and apply to collaborate."
+        ),
+        lifespan=app_lifespan,
+    )
+
+    register_auth_tools(server)
+    register_project_tools(server)
+    register_orchestration_tools(server)
+    register_quota_tools(server)
+    register_preflight_tools(server)
+    register_context_tools(server)
+    register_draft_tools(server)
+
+    return server
 
 
 def main() -> None:
     """Entry point for the MCP server."""
-    import os
-
     parser = argparse.ArgumentParser(description="Twig Loop MCP Server")
     parser.add_argument(
         "--transport",
@@ -71,14 +79,13 @@ def main() -> None:
     if transport == "http":
         transport = "streamable-http"
 
-    # For SSE/HTTP, host and port are set via environment variables:
-    #   FASTMCP_HOST (default: 127.0.0.1)
-    #   FASTMCP_PORT (default: 8100)
-    # Or for Railway: PORT env var is mapped to FASTMCP_PORT
-    port = os.getenv("PORT", os.getenv("FASTMCP_PORT", "8100"))
-    os.environ["FASTMCP_PORT"] = port
-    os.environ["FASTMCP_HOST"] = os.getenv("FASTMCP_HOST", "0.0.0.0")
+    # Ensure FASTMCP_HOST/PORT are set BEFORE creating FastMCP
+    if "FASTMCP_PORT" not in os.environ:
+        os.environ["FASTMCP_PORT"] = os.getenv("PORT", "8100")
+    if "FASTMCP_HOST" not in os.environ:
+        os.environ["FASTMCP_HOST"] = "0.0.0.0"
 
+    mcp = create_mcp()
     mcp.run(transport=transport)  # type: ignore[arg-type]
 
 
