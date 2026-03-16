@@ -21,6 +21,7 @@ from app.tools.context_tools import register_context_tools
 from app.tools.orchestration_tools import register_orchestration_tools
 from app.tools.preflight_tools import register_preflight_tools
 from app.tools.project_tools import register_project_tools
+from app.tools.draft_tools import register_draft_tools
 from app.tools.quota_tools import register_quota_tools
 
 
@@ -50,6 +51,7 @@ register_orchestration_tools(mcp)
 register_quota_tools(mcp)
 register_preflight_tools(mcp)
 register_context_tools(mcp)
+register_draft_tools(mcp)
 
 
 def main() -> None:
