@@ -1,0 +1,90 @@
+"""Twig Loop MCP Server — standard MCP protocol implementation.
+
+Replaces the deprecated mcp-gateway + mcp-orchestrator REST proxy architecture
+with a standard MCP Server using the official `mcp` Python SDK.
+
+Run:
+    uv run python -m app.main                    # stdio transport (default)
+    uv run python -m app.main --transport sse     # SSE transport
+    uv run python -m app.main --transport http    # streamable HTTP transport
+"""
+
+import argparse
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from mcp.server.fastmcp import FastMCP
+
+from app.clients.core_api import close_client
+from app.tools.auth_tools import register_auth_tools
+from app.tools.context_tools import register_context_tools
+from app.tools.orchestration_tools import register_orchestration_tools
+from app.tools.preflight_tools import register_preflight_tools
+from app.tools.project_tools import register_project_tools
+from app.tools.quota_tools import register_quota_tools
+
+
+@asynccontextmanager
+async def app_lifespan(server: FastMCP) -> AsyncIterator[None]:
+    """Manage httpx client lifecycle — close on shutdown."""
+    try:
+        yield
+    finally:
+        await close_client()
+
+
+mcp = FastMCP(
+    "Twig Loop",
+    instructions=(
+        "Twig Loop is an AI-native project collaboration platform. "
+        "Use these tools to register, authenticate, create projects, "
+        "structure work packages and task cards, and apply to collaborate."
+    ),
+    lifespan=app_lifespan,
+)
+
+# Register all tool groups
+register_auth_tools(mcp)
+register_project_tools(mcp)
+register_orchestration_tools(mcp)
+register_quota_tools(mcp)
+register_preflight_tools(mcp)
+register_context_tools(mcp)
+
+
+def main() -> None:
+    """Entry point for the MCP server."""
+    parser = argparse.ArgumentParser(description="Twig Loop MCP Server")
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "sse", "http"],
+        default="stdio",
+        help="MCP transport protocol (default: stdio)",
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host for SSE/HTTP transport (default: 127.0.0.1)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8100,
+        help="Port for SSE/HTTP transport (default: 8100)",
+    )
+    args = parser.parse_args()
+
+    transport = args.transport
+    if transport == "http":
+        transport = "streamable-http"
+
+    kwargs: dict[str, str | int] = {"transport": transport}
+    if transport in ("sse", "streamable-http"):
+        kwargs["host"] = args.host
+        kwargs["port"] = args.port
+
+    mcp.run(**kwargs)  # type: ignore[arg-type]
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,14 @@
+name: explain_rules
+purpose: >
+  Explain the Twig Loop platform rules to the user: project types,
+  required fields, review requirements, EWU calculation, and role definitions.
+required_inputs: []
+optional_inputs:
+  - project_type
+  - topic
+mcp_tools_used:
+  - get_publish_rules
+  - get_project_schema
+output_shape:
+  explanation: string
+  rules: object

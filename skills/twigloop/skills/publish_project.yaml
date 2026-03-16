@@ -1,0 +1,45 @@
+name: publish_project
+description: Guide the user through publishing a complete project with work packages and tasks.
+
+steps:
+  - name: collect_project_info
+    description: Gather project type, title, summary, target users.
+
+  - name: structure_work_packages
+    description: Break project into 1-5 work packages.
+
+  - name: define_task_cards
+    description: Define task cards for each work package (max 6 per WP, 20 total).
+
+  - name: validate_tasks
+    description: Use validate_task_card to check each task.
+
+  - name: calculate_ewu
+    description: Use calculate_ewu to assess work units (max 8 per task).
+
+  - name: check_project_quota
+    description: Use check_project_quota to verify all quota rules pass.
+
+  - name: preflight
+    description: Use preflight_project for combined validation.
+
+  - name: publish
+    description: Use publish_project_bundle to create everything.
+
+mcp_tools_used:
+  - validate_task_card
+  - calculate_ewu
+  - check_project_quota
+  - check_application_quota
+  - get_quota_rules
+  - preflight_project
+  - publish_project_bundle
+
+quota_rules:
+  max_work_packages_per_project: 5
+  max_tasks_per_work_package: 6
+  max_tasks_per_project: 20
+  max_ewu_per_task: 8
+  max_active_projects_new_founder: 2
+  max_open_seats_default: 12
+  max_active_tasks_default: 30

@@ -1,0 +1,21 @@
+name: apply_to_task
+purpose: >
+  Help the user apply to join a project as a collaborator. Runs eligibility
+  preflight, then submits the application via core-api.
+required_inputs:
+  - access_token
+  - project_id
+  - motivation
+optional_inputs:
+  - preferred_role
+  - seat_preference
+  - availability
+mcp_tools_used:
+  - preflight_application
+  - get_project
+  - get_actor_context
+  - apply_to_project
+output_shape:
+  application_id: UUID
+  project_id: UUID
+  status: string
