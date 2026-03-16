@@ -97,26 +97,35 @@ def register_project_tools(mcp: FastMCP) -> None:
     async def apply_to_project(
         access_token: str,
         project_id: str,
-        motivation: str,
-        preferred_role: str = "collaborator",
+        seat_preference: str = "growth",
+        intended_role: str = "developer",
+        motivation: str = "",
+        availability: str = "",
     ) -> dict[str, Any]:
         """Apply to join a project as a collaborator.
 
         Args:
             access_token: JWT access token.
             project_id: UUID of the project to apply to.
+            seat_preference: "growth" for learning or "formal" for experienced match.
+            intended_role: Role you want to fill (e.g. "developer", "designer").
             motivation: Brief statement of why you want to join.
-            preferred_role: Preferred collaboration role.
+            availability: How much time you can commit (e.g. "10h/week").
         """
         _validate_uuid(project_id, "project_id")
+        body: dict[str, str] = {
+            "seat_preference": seat_preference,
+            "intended_role": intended_role,
+        }
+        if motivation:
+            body["motivation"] = motivation
+        if availability:
+            body["availability"] = availability
         return await call_core_api(
             "POST",
             f"/api/v1/projects/{project_id}/applications",
             token=access_token,
-            json_body={
-                "motivation": motivation,
-                "preferred_role": preferred_role,
-            },
+            json_body=body,
         )
 
     @mcp.tool(
