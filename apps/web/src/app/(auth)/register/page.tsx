@@ -82,6 +82,13 @@ export default function RegisterPage() {
           </p>
         )}
 
+        <p className="text-xs text-gray-500">
+          By creating an account, you agree to the{" "}
+          <Link href="/terms" className="text-cyan-400 hover:underline">Terms of Service</Link>
+          {" "}and acknowledge the{" "}
+          <Link href="/privacy" className="text-cyan-400 hover:underline">Privacy Policy</Link>.
+        </p>
+
         <Button type="submit" disabled={register.isPending}>
           {register.isPending ? "Registering..." : "Register"}
         </Button>
