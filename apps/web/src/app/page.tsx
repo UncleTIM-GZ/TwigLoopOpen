@@ -36,12 +36,21 @@ export default function HomePage() {
   const projects = projRes?.data ?? [];
   const latestProjects = projects.slice(0, 3);
 
-  const totalEwu = projects.reduce((sum, p) => sum + (p.total_ewu ?? 0), 0);
-  const totalTasks = projects.reduce((sum, p) => sum + (p.task_count ?? 0), 0);
+  const totalEwu = projects.reduce(
+    (sum, p) => sum + parseFloat(String(p.total_ewu ?? 0)),
+    0,
+  );
+  const totalTasks = projects.reduce(
+    (sum, p) => sum + Number(p.task_count ?? 0),
+    0,
+  );
+  const maxEwu = projects.length > 0
+    ? Math.max(...projects.map((p) => parseFloat(String(p.max_ewu ?? 0))))
+    : 0;
   const avgEwu =
-    projects.length > 0
-      ? (totalEwu / projects.length).toFixed(1)
-      : "0";
+    totalTasks > 0
+      ? (totalEwu / totalTasks).toFixed(1)
+      : "—";
 
   return (
     <div className="space-y-10">

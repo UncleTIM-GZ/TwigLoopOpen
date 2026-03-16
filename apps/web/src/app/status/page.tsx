@@ -14,15 +14,23 @@ export default function StatusPage() {
   const { data: projRes } = useProjects();
   const projects = projRes?.data ?? [];
 
-  const openProjects = projects.filter((p) => p.status === "open");
-  const totalTasks = projects.reduce((sum, p) => sum + (p.task_count ?? 0), 0);
-  const totalEwu = projects.reduce((sum, p) => sum + (p.total_ewu ?? 0), 0);
+  const openProjects = projects.filter(
+    (p) => p.status === "open_for_collaboration" || p.status === "team_forming",
+  );
+  const totalTasks = projects.reduce(
+    (sum, p) => sum + Number(p.task_count ?? 0),
+    0,
+  );
+  const totalEwu = projects.reduce(
+    (sum, p) => sum + parseFloat(String(p.total_ewu ?? 0)),
+    0,
+  );
   const avgEwu =
-    projects.length > 0
-      ? (totalEwu / projects.length).toFixed(1)
-      : "0";
+    totalTasks > 0
+      ? (totalEwu / totalTasks).toFixed(1)
+      : "—";
   const maxEwu = projects.reduce(
-    (max, p) => Math.max(max, p.max_ewu ?? 0),
+    (max, p) => Math.max(max, parseFloat(String(p.max_ewu ?? 0))),
     0,
   );
 
