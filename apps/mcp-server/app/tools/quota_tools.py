@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from app.clients.core_api import call_core_api
 
@@ -19,7 +20,10 @@ def _validate_uuid(value: str, name: str) -> None:
 def register_quota_tools(mcp: FastMCP) -> None:
     """Register quota tools on the MCP server."""
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Get Quota Rules",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
     async def get_quota_rules() -> dict[str, Any]:
         """Get platform quota rules and their current limits.
 
@@ -28,7 +32,10 @@ def register_quota_tools(mcp: FastMCP) -> None:
         """
         return await call_core_api("GET", "/api/v1/quotas/rules")
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Check Project Quota",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
     async def check_project_quota(
         access_token: str,
         work_packages: list[dict[str, Any]] | None = None,
@@ -46,7 +53,10 @@ def register_quota_tools(mcp: FastMCP) -> None:
             json_body={"work_packages": work_packages or []},
         )
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Check Application Quota",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
     async def check_application_quota(
         access_token: str,
         project_id: str,

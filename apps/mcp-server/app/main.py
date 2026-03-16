@@ -61,7 +61,95 @@ def create_mcp() -> FastMCP:
     register_context_tools(server)
     register_draft_tools(server)
 
+    _register_prompts(server)
+    _register_resources(server)
+
     return server
+
+
+def _register_prompts(server: FastMCP) -> None:
+    """Register MCP prompts — guided workflows for common tasks."""
+
+    @server.prompt(
+        name="create-project",
+        title="Create a New Project",
+        description=(
+            "Guided workflow to create a structured project with work packages and task cards"
+        ),
+    )
+    def create_project_prompt() -> str:
+        return (
+            "I want to create a new project on Twig Loop. "
+            "Please help me define:\n"
+            "1. Project type (general / public_benefit / recruitment)\n"
+            "2. Title and summary\n"
+            "3. Work packages with tasks\n"
+            "4. Each task needs: title, task_type, goal, output_spec, "
+            "completion_criteria, main_role, risk_level\n\n"
+            "Use the create_project, draft_work_package, and validate_task_card tools. "
+            "Run preflight_project before publishing."
+        )
+
+    @server.prompt(
+        name="find-tasks",
+        title="Find Tasks to Contribute",
+        description="Discover open projects and tasks matching your skills",
+    )
+    def find_tasks_prompt() -> str:
+        return (
+            "I want to find tasks I can contribute to on Twig Loop. "
+            "Please:\n"
+            "1. Use list_projects to show open projects\n"
+            "2. Help me find tasks that match my skills\n"
+            "3. Use apply_to_project when I'm ready to apply\n"
+            "4. Check quota limits with check_application_quota first"
+        )
+
+    @server.prompt(
+        name="check-project-status",
+        title="Check Project Status",
+        description=(
+            "Review the current state of a project including tasks, applications, and quotas"
+        ),
+    )
+    def check_project_status_prompt() -> str:
+        return (
+            "I want to check the status of my project on Twig Loop. "
+            "Please use get_project to show project details, "
+            "review_applicants to see pending applications, "
+            "and check_project_quota to verify quota usage."
+        )
+
+
+def _register_resources(server: FastMCP) -> None:
+    """Register MCP resources — static platform data accessible by URI."""
+
+    @server.resource(
+        "twigloop://rules/publish",
+        name="Publish Rules",
+        description="Platform rules for project creation and publishing",
+        mime_type="application/json",
+    )
+    def publish_rules_resource() -> str:
+        import json
+
+        from app.tools.context_tools import _get_rules_dict
+
+        return json.dumps(_get_rules_dict())
+
+    @server.resource(
+        "twigloop://rules/quota",
+        name="Quota Limits",
+        description="Platform quota and complexity limits",
+        mime_type="application/json",
+    )
+    def quota_rules_resource() -> str:
+        import json
+
+        from app.tools.context_tools import _get_rules_dict
+
+        rules = _get_rules_dict()
+        return json.dumps(rules["quota_limits"])
 
 
 def main() -> None:

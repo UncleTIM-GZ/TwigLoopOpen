@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from app.clients.core_api import call_core_api
 
@@ -19,7 +20,10 @@ def _validate_uuid(value: str, name: str) -> None:
 def register_draft_tools(mcp: FastMCP) -> None:
     """Register draft tools on the MCP server."""
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Create Draft",
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
+    )
     async def create_draft(
         access_token: str,
         draft_type: str,
@@ -42,7 +46,10 @@ def register_draft_tools(mcp: FastMCP) -> None:
             body["collected_fields_json"] = collected_fields_json
         return await call_core_api("POST", "/api/v1/drafts/", token=access_token, json_body=body)
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Update Draft",
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=True, openWorldHint=False),
+    )
     async def update_draft(
         access_token: str,
         draft_id: str,
@@ -78,7 +85,10 @@ def register_draft_tools(mcp: FastMCP) -> None:
             json_body=body,
         )
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Get Draft",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
     async def get_draft(
         access_token: str,
         draft_id: str,
@@ -96,7 +106,10 @@ def register_draft_tools(mcp: FastMCP) -> None:
             token=access_token,
         )
 
-    @mcp.tool()
+    @mcp.tool(
+        title="List My Drafts",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
     async def list_my_drafts(
         access_token: str,
     ) -> dict[str, Any]:
@@ -107,7 +120,15 @@ def register_draft_tools(mcp: FastMCP) -> None:
         """
         return await call_core_api("GET", "/api/v1/drafts/", token=access_token)
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Delete Draft",
+        annotations=ToolAnnotations(
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
     async def delete_draft(
         access_token: str,
         draft_id: str,

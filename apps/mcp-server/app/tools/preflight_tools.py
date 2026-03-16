@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from app.clients.core_api import call_core_api
 
@@ -11,7 +12,10 @@ from app.clients.core_api import call_core_api
 def register_preflight_tools(mcp: FastMCP) -> None:
     """Register preflight tools on the MCP server."""
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Preflight Project",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
     async def preflight_project(
         access_token: str,
         collected_fields_json: str,

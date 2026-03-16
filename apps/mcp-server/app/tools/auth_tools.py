@@ -3,6 +3,7 @@
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from app.clients.core_api import call_core_api
 
@@ -10,7 +11,10 @@ from app.clients.core_api import call_core_api
 def register_auth_tools(mcp: FastMCP) -> None:
     """Register authentication tools on the MCP server."""
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Register Actor",
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
+    )
     async def register_actor(
         email: str,
         password: str,
@@ -36,7 +40,10 @@ def register_auth_tools(mcp: FastMCP) -> None:
             },
         )
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Authenticate Actor",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
     async def authenticate_actor(
         email: str,
         password: str,
@@ -55,7 +62,10 @@ def register_auth_tools(mcp: FastMCP) -> None:
             json_body={"email": email, "password": password},
         )
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Get Actor Profile",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
     async def get_actor_profile(access_token: str) -> dict[str, Any]:
         """Get the current actor's profile.
 

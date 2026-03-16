@@ -5,6 +5,7 @@ import re
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from app.clients.core_api import call_core_api
 
@@ -22,7 +23,10 @@ def _validate_uuid(value: str, name: str) -> None:
 def register_orchestration_tools(mcp: FastMCP) -> None:
     """Register orchestration tools on the MCP server."""
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Publish Project Bundle",
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=True),
+    )
     async def publish_project_bundle(
         access_token: str,
         project_type: str,
@@ -135,7 +139,10 @@ def register_orchestration_tools(mcp: FastMCP) -> None:
 
         return result
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Draft Work Package",
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
+    )
     async def draft_work_package(
         access_token: str,
         project_id: str,
@@ -158,7 +165,10 @@ def register_orchestration_tools(mcp: FastMCP) -> None:
             json_body={"title": title, "description": description},
         )
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Validate Task Card",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
     async def validate_task_card(
         title: str,
         goal: str,

@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from app.clients.core_api import call_core_api
 
@@ -19,7 +20,10 @@ def _validate_uuid(value: str, name: str) -> None:
 def register_project_tools(mcp: FastMCP) -> None:
     """Register project tools on the MCP server."""
 
-    @mcp.tool()
+    @mcp.tool(
+        title="List Projects",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
     async def list_projects(
         project_type: str | None = None,
         page: int = 1,
@@ -37,7 +41,10 @@ def register_project_tools(mcp: FastMCP) -> None:
             params["project_type"] = project_type
         return await call_core_api("GET", "/api/v1/projects/", params=params)
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Get Project Details",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
     async def get_project(project_id: str) -> dict[str, Any]:
         """Get detailed information about a specific project.
 
@@ -47,7 +54,10 @@ def register_project_tools(mcp: FastMCP) -> None:
         _validate_uuid(project_id, "project_id")
         return await call_core_api("GET", f"/api/v1/projects/{project_id}")
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Create Project",
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
+    )
     async def create_project(
         access_token: str,
         project_type: str,
@@ -80,7 +90,10 @@ def register_project_tools(mcp: FastMCP) -> None:
             },
         )
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Apply to Project",
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
+    )
     async def apply_to_project(
         access_token: str,
         project_id: str,
@@ -106,7 +119,10 @@ def register_project_tools(mcp: FastMCP) -> None:
             },
         )
 
-    @mcp.tool()
+    @mcp.tool(
+        title="Review Applicants",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
     async def review_applicants(
         access_token: str,
         project_id: str,
