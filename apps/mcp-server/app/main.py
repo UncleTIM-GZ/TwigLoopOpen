@@ -86,7 +86,18 @@ def main() -> None:
         os.environ["FASTMCP_HOST"] = "0.0.0.0"
 
     mcp = create_mcp()
-    mcp.run(transport=transport)  # type: ignore[arg-type]
+
+    if transport == "stdio":
+        mcp.run(transport="stdio")
+    else:
+        # For SSE/HTTP, bypass FastMCP.run() and start uvicorn directly
+        # because FastMCP.Settings may not read FASTMCP_HOST/PORT correctly
+        import uvicorn
+
+        host = os.getenv("FASTMCP_HOST", os.getenv("HOST", "0.0.0.0"))
+        port = int(os.getenv("PORT", os.getenv("FASTMCP_PORT", "8100")))
+        app = mcp.sse_app() if transport == "sse" else mcp.streamable_http_app()
+        uvicorn.run(app, host=host, port=port)
 
 
 if __name__ == "__main__":
