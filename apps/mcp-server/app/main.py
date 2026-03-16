@@ -87,11 +87,19 @@ def main() -> None:
 
     mcp = create_mcp()
 
+    # Set allowed hosts for remote access (Railway edge forwards with domain Host header)
+    mcp.settings.transport_security.allowed_hosts = [
+        "127.0.0.1:*",
+        "localhost:*",
+        "mcp.twigloop.tech",
+        "mcp.twigloop.tech:*",
+        "mcp-server-production-4ae6.up.railway.app",
+        "mcp-server-production-4ae6.up.railway.app:*",
+    ]
+
     if transport == "stdio":
         mcp.run(transport="stdio")
     else:
-        # For SSE/HTTP, bypass FastMCP.run() and start uvicorn directly
-        # because FastMCP.Settings may not read FASTMCP_HOST/PORT correctly
         import uvicorn
 
         host = os.getenv("FASTMCP_HOST", os.getenv("HOST", "0.0.0.0"))
