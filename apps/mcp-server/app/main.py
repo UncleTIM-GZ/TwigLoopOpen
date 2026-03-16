@@ -104,7 +104,12 @@ def main() -> None:
 
         host = os.getenv("FASTMCP_HOST", os.getenv("HOST", "0.0.0.0"))
         port = int(os.getenv("PORT", os.getenv("FASTMCP_PORT", "8100")))
-        app = mcp.sse_app() if transport == "sse" else mcp.streamable_http_app()
+
+        if transport == "streamable-http":
+            app = mcp.streamable_http_app()
+        else:
+            app = mcp.sse_app()
+
         uvicorn.run(app, host=host, port=port)
 
 
