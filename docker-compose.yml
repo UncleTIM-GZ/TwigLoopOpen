@@ -163,6 +163,44 @@ services:
     networks:
       - twigloop-net
 
+  # ===== GitHub Signal Agent (Horizon 2: first externalized agent) =====
+  github-signal-agent:
+    build:
+      context: ./apps/github-signal-agent
+      dockerfile: Dockerfile
+    container_name: twigloop-github-signal-agent
+    environment:
+      AGENT_ENDPOINT: http://github-signal-agent:8001/delegate
+      AGENT_WELL_KNOWN_URL: http://github-signal-agent:8001/.well-known/agent-card.json
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - twigloop-net
+
+  # ===== VC Agent (Horizon 2.1: second externalized agent) =====
+  vc-agent:
+    build:
+      context: ./apps/vc-agent
+      dockerfile: Dockerfile
+    container_name: twigloop-vc-agent
+    environment:
+      AGENT_ENDPOINT: http://vc-agent:8002/delegate
+      AGENT_WELL_KNOWN_URL: http://vc-agent:8002/.well-known/agent-card.json
+    ports:
+      - "8002:8002"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - twigloop-net
+
 volumes:
   postgres-data:
   redis-data:

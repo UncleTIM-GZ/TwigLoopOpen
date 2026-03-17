@@ -347,29 +347,67 @@ function TaskBrief({ task }: { task: TaskCardResponse }) {
     TASK_VERIFICATION_COLORS[task.verification_status] ??
     "text-gray-500 bg-gray-800";
 
+  const signalQuality =
+    task.signal_count >= 3
+      ? "strong"
+      : task.signal_count >= 1
+        ? "partial"
+        : "none";
+  const signalColor =
+    signalQuality === "strong"
+      ? "text-green-400"
+      : signalQuality === "partial"
+        ? "text-yellow-400"
+        : "text-gray-500";
+
   return (
-    <div className="flex items-center justify-between gap-3 text-xs font-mono bg-gray-800/50 rounded px-3 py-1.5">
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="text-gray-300 truncate">{task.title}</span>
-        <span className="text-gray-600">|</span>
-        <span className="text-gray-500">{task.status}</span>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <span className="text-cyan-400">ewu:{task.ewu}</span>
-        <span className={`px-1.5 py-0.5 rounded ${verificationStyle}`}>
-          {task.verification_status}
-        </span>
-        {task.signal_count > 0 && (
-          <span className="text-green-400/70">
-            {task.signal_count}sig
+    <div className="bg-gray-800/50 rounded px-3 py-2 text-xs font-mono space-y-1">
+      {/* Row 1: title + status */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-gray-300 truncate">{task.title}</span>
+          <span className="text-gray-600">|</span>
+          <span className="text-gray-500">{task.status}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-cyan-400">ewu:{task.ewu}</span>
+          <span className={`px-1.5 py-0.5 rounded ${verificationStyle}`}>
+            {task.verification_status}
           </span>
-        )}
-        {task.completion_mode === "legacy" && (
-          <span className="text-orange-400/70 bg-orange-400/10 px-1.5 py-0.5 rounded">
-            legacy
-          </span>
-        )}
+          {task.completion_mode === "legacy" && (
+            <span className="text-orange-400/70 bg-orange-400/10 px-1.5 py-0.5 rounded">
+              legacy
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Row 2: signal info (if any signals exist) */}
+      {task.signal_count > 0 && (
+        <div className="flex items-center gap-3 text-gray-500 pl-1">
+          <span className={signalColor}>
+            signal: {signalQuality} ({task.signal_count})
+          </span>
+          {task.pr_url && (
+            <a
+              href={task.pr_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-cyan-400/70 hover:text-cyan-400 truncate max-w-[200px]"
+            >
+              PR
+            </a>
+          )}
+          {task.latest_commit_sha && (
+            <span className="text-gray-600">
+              commit: {task.latest_commit_sha.slice(0, 7)}
+            </span>
+          )}
+          <span className="text-gray-700 italic">
+            signal is advisory, not proof of completion
+          </span>
+        </div>
+      )}
     </div>
   );
 }

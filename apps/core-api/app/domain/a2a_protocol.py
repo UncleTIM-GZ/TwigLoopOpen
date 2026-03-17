@@ -1,7 +1,9 @@
 """A2A protocol objects — TaskEnvelope, DelegationContract, AgentResult.
 
-These are Twig Loop's domain protocol objects for agent-to-agent collaboration.
-Phase 4 minimum: platform-internal coordination, not yet external A2A service.
+Twig Loop's domain protocol objects for agent-to-agent collaboration.
+Horizon 2: supports both in-process and external agent delegation.
+
+Protocol version: 2.0
 """
 
 import uuid
@@ -9,6 +11,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+PROTOCOL_VERSION = "2.0"
 
 
 class TaskEnvelope(BaseModel):
@@ -31,6 +35,10 @@ class TaskEnvelope(BaseModel):
     signal_context: dict[str, Any] = Field(default_factory=dict)
     created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     version: int = 1
+
+    # H2: wire protocol fields
+    protocol_version: str = PROTOCOL_VERSION
+    trace_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
 
 class DelegationContract(BaseModel):
@@ -56,6 +64,11 @@ class DelegationContract(BaseModel):
     created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     status: str = "pending"  # pending, in_progress, completed, failed, timed_out
 
+    # H2: correlation and retry
+    correlation_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    retry_count: int = 0
+    max_retries: int = 3
+
 
 class AgentResult(BaseModel):
     """Result returned by a specialized agent."""
@@ -67,3 +80,9 @@ class AgentResult(BaseModel):
     confidence: float = 0.0  # 0.0 to 1.0
     requires_human_review: bool = True
     produced_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
+
+    # H2: traceability and error reporting
+    agent_version: str = "1.0.0"
+    trace_id: str = ""
+    error_code: str | None = None
+    error_detail: str | None = None

@@ -144,6 +144,11 @@ export interface TaskCardResponse {
   verification_status: string;
   completion_mode: string;
   signal_count: number;
+  // GitHub signal fields
+  repo_url: string | null;
+  branch_name: string | null;
+  pr_url: string | null;
+  latest_commit_sha: string | null;
   created_at: string;
 }
 

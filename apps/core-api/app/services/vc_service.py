@@ -10,16 +10,32 @@ from shared_schemas import PaginatedMeta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import ConflictError, ForbiddenError, NotFoundError
+from app.models.credential_history import CredentialHistory
 from app.models.verifiable_credential import VerifiableCredential
+from app.repositories.credential_history_repo import CredentialHistoryRepository
 from app.repositories.project_repo import ProjectRepository
 from app.repositories.task_card_repo import TaskCardRepository
 from app.repositories.vc_repo import VerifiableCredentialRepository
 from app.schemas.credential import (
+    CredentialHistoryEntry,
     CredentialResponse,
+    CredentialStatusResponse,
     IssueCredentialRequest,
+    RevokeCredentialRequest,
+    SuspendCredentialRequest,
     VerifyResponse,
 )
 from app.services.event_write_service import EventWriteService
+
+# Valid state transitions
+VALID_TRANSITIONS: dict[str, set[str]] = {
+    "draft": {"issued"},
+    "issued": {"suspended", "revoked", "superseded", "expired"},
+    "suspended": {"issued", "revoked"},
+    "revoked": set(),
+    "superseded": set(),
+    "expired": set(),
+}
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +48,7 @@ class VerifiableCredentialService:
         self._project_repo = ProjectRepository(session)
         self._task_repo = TaskCardRepository(session)
         self._events = EventWriteService(session)
+        self._history_repo = CredentialHistoryRepository(session)
 
     async def issue(self, req: IssueCredentialRequest, user: CurrentUser) -> CredentialResponse:
         if req.credential_type not in VALID_CREDENTIAL_TYPES:
@@ -81,6 +98,16 @@ class VerifiableCredentialService:
                 exc_info=True,
             )
 
+        await self._record_history(
+            vc,
+            event_type="issued",
+            previous_status="draft",
+            new_status="issued",
+            actor_id=user.actor_id,
+            reason_code="issuance",
+            evidence_ref=req.task_id,
+        )
+
         logger.info(
             "Credential issued",
             extra={
@@ -108,9 +135,151 @@ class VerifiableCredentialService:
                 raise ForbiddenError("Not authorized to view this credential")
         return self._to_response(vc)
 
+    async def revoke(
+        self,
+        vc_id: uuid.UUID,
+        req: RevokeCredentialRequest,
+        user: CurrentUser,
+    ) -> CredentialStatusResponse:
+        """Revoke a credential. Allowed from issued or suspended."""
+        vc = await self._vc_repo.find_by_id(vc_id)
+        if not vc:
+            raise NotFoundError("Credential not found")
+        previous_status = vc.status
+        if "revoked" not in VALID_TRANSITIONS.get(vc.status, set()):
+            raise ConflictError(f"Cannot revoke credential in '{vc.status}' status")
+
+        self._authorize_credential_action(vc, user)
+
+        vc = await self._vc_repo.update_fields(
+            vc,
+            {
+                "status": "revoked",
+                "revoked_at": datetime.now(UTC),
+                "revocation_reason": req.reason,
+                "revoked_by": user.actor_id,
+            },
+        )
+
+        try:
+            await self._events.record_domain_event(
+                "credential_revoked",
+                "verifiable_credential",
+                vc.id,
+                actor_id=user.actor_id,
+                payload={"reason": req.reason},
+            )
+        except Exception:
+            logger.warning("Side-effect failed: credential_revoked for vc=%s", vc.id, exc_info=True)
+
+        await self._record_history(
+            vc,
+            event_type="revoked",
+            previous_status=previous_status,
+            new_status="revoked",
+            actor_id=user.actor_id,
+            reason_code="revocation",
+            reason_text=req.reason,
+        )
+
+        logger.info(
+            "Credential revoked",
+            extra={"credential_id": str(vc.id), "reason": req.reason},
+        )
+        return self._to_status_response(vc)
+
+    async def get_status(self, vc_id: uuid.UUID) -> CredentialStatusResponse:
+        """Get credential lifecycle status (public endpoint, no auth required)."""
+        vc = await self._vc_repo.find_by_id(vc_id)
+        if not vc:
+            raise NotFoundError("Credential not found")
+        return self._to_status_response(vc)
+
+    async def suspend(
+        self,
+        vc_id: uuid.UUID,
+        req: SuspendCredentialRequest,
+        user: CurrentUser,
+    ) -> CredentialStatusResponse:
+        """Suspend an issued credential. Reversible via reactivate."""
+        vc = await self._vc_repo.find_by_id(vc_id)
+        if not vc:
+            raise NotFoundError("Credential not found")
+        if "suspended" not in VALID_TRANSITIONS.get(vc.status, set()):
+            raise ConflictError(f"Cannot suspend credential in '{vc.status}' status")
+
+        self._authorize_credential_action(vc, user)
+
+        vc = await self._vc_repo.update_fields(
+            vc,
+            {
+                "status": "suspended",
+                "suspended_at": datetime.now(UTC),
+                "suspension_reason": req.reason,
+                "suspended_by": user.actor_id,
+            },
+        )
+
+        await self._record_history(
+            vc,
+            event_type="suspended",
+            previous_status="issued",
+            new_status="suspended",
+            actor_id=user.actor_id,
+            reason_code="suspension",
+            reason_text=req.reason,
+        )
+
+        logger.info(
+            "Credential suspended",
+            extra={"credential_id": str(vc.id), "reason": req.reason},
+        )
+        return self._to_status_response(vc)
+
+    async def reactivate(
+        self,
+        vc_id: uuid.UUID,
+        user: CurrentUser,
+    ) -> CredentialStatusResponse:
+        """Reactivate a suspended credential back to issued."""
+        vc = await self._vc_repo.find_by_id(vc_id)
+        if not vc:
+            raise NotFoundError("Credential not found")
+        if vc.status != "suspended":
+            raise ConflictError("Can only reactivate suspended credentials")
+
+        self._authorize_credential_action(vc, user)
+
+        vc = await self._vc_repo.update_fields(
+            vc,
+            {
+                "status": "issued",
+                "suspended_at": None,
+                "suspension_reason": None,
+                "suspended_by": None,
+            },
+        )
+
+        await self._record_history(
+            vc,
+            event_type="reactivated",
+            previous_status="suspended",
+            new_status="issued",
+            actor_id=user.actor_id,
+            reason_code="reactivation",
+        )
+
+        logger.info("Credential reactivated", extra={"credential_id": str(vc.id)})
+        return self._to_status_response(vc)
+
     async def verify(self, vc_id: uuid.UUID) -> VerifyResponse:
         vc = await self._vc_repo.find_by_id(vc_id)
-        if not vc or vc.status != "issued":
+        if not vc:
+            return VerifyResponse(valid=False)
+        # Check expiry at verification time
+        if vc.valid_until and datetime.now(UTC) > vc.valid_until:
+            return VerifyResponse(valid=False)
+        if vc.status not in ("issued",):
             return VerifyResponse(valid=False)
         return VerifyResponse(
             valid=True,
@@ -176,6 +345,88 @@ class VerifiableCredentialService:
 
         return data
 
+    async def get_history(
+        self, vc_id: uuid.UUID, user: CurrentUser
+    ) -> list[CredentialHistoryEntry]:
+        """Get credential lifecycle history (auth required)."""
+        vc = await self._vc_repo.find_by_id(vc_id)
+        if not vc:
+            raise NotFoundError("Credential not found")
+        if vc.actor_id != user.actor_id:
+            if vc.project_id:
+                project = await self._project_repo.find_by_id(vc.project_id)
+                if not project or project.founder_actor_id != user.actor_id:
+                    raise ForbiddenError("Not authorized to view credential history")
+            else:
+                raise ForbiddenError("Not authorized to view credential history")
+
+        entries = await self._history_repo.find_by_credential(vc_id)
+        return [
+            CredentialHistoryEntry(
+                history_id=e.id,
+                credential_id=e.credential_id,
+                event_type=e.event_type,
+                previous_status=e.previous_status,
+                new_status=e.new_status,
+                source=e.source,
+                occurred_at=e.occurred_at,
+            )
+            for e in entries
+        ]
+
+    async def _record_history(
+        self,
+        vc: VerifiableCredential,
+        *,
+        event_type: str,
+        previous_status: str | None,
+        new_status: str,
+        actor_id: uuid.UUID | None = None,
+        source: str = "platform",
+        reason_code: str | None = None,
+        reason_text: str | None = None,
+        evidence_ref: uuid.UUID | None = None,
+        verification_ref: uuid.UUID | None = None,
+        delegation_id: str | None = None,
+        trace_id: str | None = None,
+    ) -> None:
+        """Record a credential lifecycle event in the history table."""
+        try:
+            entry = CredentialHistory(
+                credential_id=vc.id,
+                event_type=event_type,
+                previous_status=previous_status,
+                new_status=new_status,
+                actor_id=actor_id,
+                source=source,
+                reason_code=reason_code,
+                reason_text=reason_text,
+                evidence_ref=evidence_ref,
+                verification_ref=verification_ref,
+                delegation_id=delegation_id,
+                trace_id=trace_id,
+            )
+            await self._history_repo.create(entry)
+        except Exception:
+            logger.warning(
+                "Failed to record credential history for vc=%s event=%s",
+                vc.id,
+                event_type,
+                exc_info=True,
+            )
+
+    async def _authorize_credential_action(
+        self, vc: VerifiableCredential, user: CurrentUser
+    ) -> None:
+        """Check authorization for credential lifecycle actions."""
+        if vc.actor_id == user.actor_id:
+            return
+        if vc.project_id:
+            project = await self._project_repo.find_by_id(vc.project_id)
+            if project and project.founder_actor_id == user.actor_id:
+                return
+        raise ForbiddenError("Not authorized for this credential action")
+
     @staticmethod
     def _to_response(vc: VerifiableCredential) -> CredentialResponse:
         return CredentialResponse(
@@ -188,4 +439,18 @@ class VerifiableCredentialService:
             status=vc.status,
             issued_at=vc.issued_at,
             created_at=vc.created_at,
+        )
+
+    @staticmethod
+    def _to_status_response(vc: VerifiableCredential) -> CredentialStatusResponse:
+        return CredentialStatusResponse(
+            credential_id=vc.id,
+            status=vc.status,
+            issued_at=vc.issued_at,
+            valid_until=vc.valid_until,
+            revoked_at=vc.revoked_at,
+            suspended_at=vc.suspended_at,
+            superseded_by=vc.superseded_by,
+            supersedes=vc.supersedes,
+            credential_version=vc.credential_version,
         )

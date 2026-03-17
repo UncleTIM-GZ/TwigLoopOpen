@@ -1,9 +1,16 @@
-"""VerifiableCredential model."""
+"""VerifiableCredential model.
+
+Status lifecycle:
+  draft → issued → [suspended | revoked | superseded]
+  suspended → [issued (reactivated) | revoked]
+  issued/suspended → expired (when valid_until passes)
+  revoked, superseded, expired → terminal (no further transitions)
+"""
 
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -45,3 +52,24 @@ class VerifiableCredential(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey("task_verifications.id"), nullable=True
     )
     issuance_basis: Mapped[str] = mapped_column(String(50), nullable=False, default="verified")
+
+    # Lifecycle fields — revoke, supersede, suspend, expire
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revocation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    revoked_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("actors.id"), nullable=True
+    )
+    superseded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("verifiable_credentials.id"), nullable=True
+    )
+    supersedes: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("verifiable_credentials.id"), nullable=True
+    )
+
+    # H3.2: suspended + expiry
+    suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    suspension_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    suspended_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("actors.id"), nullable=True
+    )
+    valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

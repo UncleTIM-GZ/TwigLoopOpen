@@ -57,3 +57,12 @@ class VerifiableCredentialRepository:
         await self._session.flush()
         await self._session.refresh(vc)
         return vc
+
+    async def update_fields(
+        self, vc: VerifiableCredential, updates: dict[str, object]
+    ) -> VerifiableCredential:
+        for key, value in updates.items():
+            setattr(vc, key, value)
+        await self._session.flush()
+        await self._session.refresh(vc)
+        return vc

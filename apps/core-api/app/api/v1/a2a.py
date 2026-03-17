@@ -1,7 +1,6 @@
 """A2A coordination API — trigger agent delegations and view results."""
 
 import uuid
-from typing import Any
 
 from fastapi import APIRouter, Depends
 from shared_auth import CurrentUser, get_current_user
@@ -10,11 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.domain.a2a_protocol import TaskEnvelope
+from app.domain.agent_card import AGENT_CARDS
 from app.exceptions import ForbiddenError, NotFoundError
+from app.models.task_card import TaskCard
 from app.repositories.evidence_repo import EvidenceRepository
 from app.repositories.project_repo import ProjectRepository
 from app.repositories.task_card_repo import TaskCardRepository
 from app.repositories.work_package_repo import WorkPackageRepository
+from app.services.brief_service import BriefService
 from app.services.coordination_service import CoordinationService
 
 router = APIRouter(prefix="/a2a", tags=["a2a"])
@@ -26,7 +28,7 @@ async def _build_base_envelope(
     session: AsyncSession,
     *,
     require_founder: bool = False,
-) -> tuple[TaskEnvelope, Any, TaskCardRepository]:
+) -> tuple[TaskEnvelope, TaskCard, TaskCardRepository]:
     """Build base TaskEnvelope from task. Shared by all A2A endpoints."""
     task_repo = TaskCardRepository(session)
     wp_repo = WorkPackageRepository(session)
@@ -79,6 +81,18 @@ async def request_matching(
     coord = CoordinationService(session)
     result = await coord.delegate_matching(envelope)
 
+    # Persist matching brief
+    brief_svc = BriefService(session)
+    await brief_svc.save_brief(
+        task_id=task_id,
+        brief_type="matching_brief",
+        brief_source=result.structured_payload.get("brief_source", "rule_based"),
+        content=result.structured_payload,
+        actor_id=user.actor_id,
+        delegation_id=result.delegation_id,
+        trace_id=result.trace_id,
+    )
+
     return ApiResponse(
         success=True,
         data={
@@ -118,6 +132,18 @@ async def request_review_prep(
 
     coord = CoordinationService(session)
     result = await coord.delegate_review_prep(envelope)
+
+    # Persist review brief
+    brief_svc = BriefService(session)
+    await brief_svc.save_brief(
+        task_id=task_id,
+        brief_type="review_brief",
+        brief_source=result.structured_payload.get("brief_source", "rule_based"),
+        content=result.structured_payload,
+        actor_id=user.actor_id,
+        delegation_id=result.delegation_id,
+        trace_id=result.trace_id,
+    )
 
     return ApiResponse(
         success=True,
@@ -214,3 +240,45 @@ async def request_vc_check(
             "requires_human_review": result.requires_human_review,
         },
     )
+
+
+@router.get("/tasks/{task_id}/briefs/{brief_type}")
+async def get_latest_brief(
+    task_id: uuid.UUID,
+    brief_type: str,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[dict]:
+    """Get the latest persisted brief for a task."""
+    if brief_type not in ("matching_brief", "review_brief"):
+        from app.exceptions import NotFoundError
+
+        raise NotFoundError(f"Unknown brief type: {brief_type}")
+
+    brief_svc = BriefService(session)
+    brief = await brief_svc.get_latest(task_id, brief_type)
+    if not brief:
+        return ApiResponse(success=True, data=None)
+
+    return ApiResponse(
+        success=True,
+        data={
+            "brief_id": str(brief.id),
+            "task_id": str(brief.task_id),
+            "brief_type": brief.brief_type,
+            "brief_source": brief.brief_source,
+            "brief_version": brief.brief_version,
+            "status": brief.status,
+            "content": brief.content_json,
+            "created_at": brief.created_at.isoformat(),
+        },
+    )
+
+
+@router.get("/agents")
+async def list_agents(
+    user: CurrentUser = Depends(get_current_user),
+) -> ApiResponse[list[dict]]:
+    """List registered platform agents and their capabilities."""
+    cards = [card.model_dump() for card in AGENT_CARDS.values()]
+    return ApiResponse(success=True, data=cards)

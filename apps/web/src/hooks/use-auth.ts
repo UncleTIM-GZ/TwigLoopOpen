@@ -87,9 +87,13 @@ export function useUpdateProfile() {
 export interface CredentialResponse {
   credential_id: string;
   credential_type: string;
+  status: string;
   issued_at: string;
   task_id: string | null;
   holder_actor_id: string;
+  credential_version: number;
+  revoked_at: string | null;
+  superseded_by: string | null;
 }
 
 export function useMyCredentials() {

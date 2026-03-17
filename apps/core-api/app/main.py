@@ -13,6 +13,7 @@ from shared_schemas import ApiResponse
 
 from app.api.v1.router import v1_router
 from app.exceptions import AppError
+from app.observability import TraceContextMiddleware
 
 settings = AppSettings()
 setup_telemetry(service_name="core-api")
@@ -64,6 +65,7 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
     )
 
 
+app.add_middleware(TraceContextMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
@@ -79,3 +81,11 @@ app.include_router(v1_router)
 async def health_check() -> ApiResponse[dict[str, str]]:
     """Health check endpoint."""
     return ApiResponse(success=True, data={"status": "ok"})
+
+
+@app.get("/metrics")  # type: ignore[untyped-decorator]
+async def get_metrics() -> dict:
+    """Internal metrics snapshot for operator use."""
+    from app.metrics import metrics
+
+    return metrics.snapshot()
