@@ -240,3 +240,49 @@ def register_evidence_tools(mcp: FastMCP) -> None:
             token=access_token,
             params={"page": str(page), "limit": str(limit)},
         )
+
+    @mcp.tool(
+        title="Request Matching Suggestions",
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=True, openWorldHint=False),
+    )
+    async def request_matching(
+        access_token: str,
+        task_id: str,
+    ) -> dict[str, Any]:
+        """Request A2A matching suggestions for a task.
+
+        Delegates to the Matching Agent to analyze task requirements and
+        suggest ideal collaborator profiles and seat types.
+
+        Args:
+            access_token: JWT access token.
+            task_id: UUID of the task.
+        """
+        return await call_core_api(
+            "POST",
+            f"/api/v1/a2a/tasks/{task_id}/match",
+            token=access_token,
+        )
+
+    @mcp.tool(
+        title="Request Review Prep Brief",
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=True, openWorldHint=False),
+    )
+    async def request_review_prep(
+        access_token: str,
+        task_id: str,
+    ) -> dict[str, Any]:
+        """Request A2A review preparation brief for a task.
+
+        Delegates to the Review Prep Agent to analyze evidence and produce
+        a structured review checklist for the reviewer.
+
+        Args:
+            access_token: JWT access token.
+            task_id: UUID of the task.
+        """
+        return await call_core_api(
+            "POST",
+            f"/api/v1/a2a/tasks/{task_id}/review-prep",
+            token=access_token,
+        )

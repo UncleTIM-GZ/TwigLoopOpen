@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from app.api.v1.a2a import router as a2a_router
 from app.api.v1.admin import router as admin_router
 from app.api.v1.applications import router as applications_router
 from app.api.v1.auth import router as auth_router
@@ -42,3 +43,4 @@ v1_router.include_router(sponsors_router)
 v1_router.include_router(quotas_router)
 v1_router.include_router(credentials_router)
 v1_router.include_router(evidence_router)
+v1_router.include_router(a2a_router)
