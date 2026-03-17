@@ -116,3 +116,108 @@ async def request_review_prep(
             "requires_human_review": result.requires_human_review,
         },
     )
+
+
+@router.post("/tasks/{task_id}/github-signal")
+async def request_github_signal(
+    task_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[dict]:
+    """Analyze GitHub signals for a task via A2A delegation."""
+    task_repo = TaskCardRepository(session)
+    wp_repo = WorkPackageRepository(session)
+
+    task = await task_repo.find_by_id(task_id)
+    if not task:
+        raise NotFoundError("Task not found")
+
+    wp = await wp_repo.find_by_id(task.work_package_id)
+
+    envelope = TaskEnvelope(
+        task_id=str(task.id),
+        project_id=str(wp.project_id) if wp else "",
+        work_package_id=str(task.work_package_id),
+        actor_id=str(user.actor_id),
+        objective=task.goal,
+        current_status=task.status,
+        signal_context={
+            "repo_url": task.repo_url or "",
+            "branch_name": task.branch_name or "",
+            "pr_url": task.pr_url or "",
+            "latest_commit_sha": task.latest_commit_sha or "",
+            "signal_count": task.signal_count,
+        },
+    )
+
+    coord = CoordinationService(session)
+    result = await coord.delegate_github_signal(envelope)
+
+    # Write signal fields back to task
+    updates: dict[str, object] = {}
+    payload = result.structured_payload
+    if payload.get("signal_status"):
+        updates["signal_count"] = payload.get("signal_count", 0)
+    if updates:
+        await task_repo.update_fields(task, updates)
+
+    return ApiResponse(
+        success=True,
+        data={
+            "delegation_id": result.delegation_id,
+            "result_type": result.result_type,
+            "summary": result.summary,
+            "signal_snapshot": result.structured_payload,
+            "confidence": result.confidence,
+        },
+    )
+
+
+@router.post("/tasks/{task_id}/vc-check")
+async def request_vc_check(
+    task_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[dict]:
+    """Check VC issuance eligibility via A2A delegation."""
+    task_repo = TaskCardRepository(session)
+    wp_repo = WorkPackageRepository(session)
+    evidence_repo = EvidenceRepository(session)
+
+    task = await task_repo.find_by_id(task_id)
+    if not task:
+        raise NotFoundError("Task not found")
+
+    wp = await wp_repo.find_by_id(task.work_package_id)
+    evidence_count = await evidence_repo.count_by_task(task_id)
+
+    envelope = TaskEnvelope(
+        task_id=str(task.id),
+        project_id=str(wp.project_id) if wp else "",
+        work_package_id=str(task.work_package_id),
+        actor_id=str(user.actor_id),
+        objective=task.goal,
+        current_status=task.status,
+        constraints={"ewu": str(task.ewu)},
+        signal_context={
+            "verification_status": task.verification_status,
+            "completion_mode": task.completion_mode,
+            "evidence_count": evidence_count,
+            "target_actor_id": str(user.actor_id),
+        },
+    )
+
+    coord = CoordinationService(session)
+    result = await coord.delegate_vc_issuance(envelope)
+
+    return ApiResponse(
+        success=True,
+        data={
+            "delegation_id": result.delegation_id,
+            "result_type": result.result_type,
+            "summary": result.summary,
+            "vc_recommendation": result.structured_payload,
+            "confidence": result.confidence,
+            "requires_human_review": result.requires_human_review,
+        },
+    )

@@ -286,3 +286,124 @@ def register_evidence_tools(mcp: FastMCP) -> None:
             f"/api/v1/a2a/tasks/{task_id}/review-prep",
             token=access_token,
         )
+
+    @mcp.tool(
+        title="Submit GitHub Signal",
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=True, openWorldHint=False),
+    )
+    async def submit_github_signal(
+        access_token: str,
+        task_id: str,
+        repo_url: str = "",
+        branch_name: str = "",
+        pr_url: str = "",
+        commit_sha: str = "",
+    ) -> dict[str, Any]:
+        """Submit GitHub signal info and trigger signal analysis.
+
+        Provide repo/branch/PR/commit info for a task. The GitHub Signal Agent
+        will normalize this into a signal snapshot.
+
+        Args:
+            access_token: JWT access token.
+            task_id: UUID of the task.
+            repo_url: GitHub repository URL.
+            branch_name: Branch name.
+            pr_url: Pull request URL.
+            commit_sha: Latest commit SHA.
+        """
+        # First update task fields via PATCH
+        updates: dict[str, str] = {}
+        if repo_url:
+            updates["repo_url"] = repo_url
+        if branch_name:
+            updates["branch_name"] = branch_name
+        if pr_url:
+            updates["pr_url"] = pr_url
+        if commit_sha:
+            updates["latest_commit_sha"] = commit_sha
+
+        # Note: We can't PATCH these fields directly because UpdateTaskCardRequest
+        # doesn't include them. So we go straight to signal analysis.
+        return await call_core_api(
+            "POST",
+            f"/api/v1/a2a/tasks/{task_id}/github-signal",
+            token=access_token,
+        )
+
+    @mcp.tool(
+        title="Get Task Signal Status",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
+    async def get_task_signal(
+        access_token: str,
+        task_id: str,
+    ) -> dict[str, Any]:
+        """Get GitHub signal analysis for a task.
+
+        Args:
+            access_token: JWT access token.
+            task_id: UUID of the task.
+        """
+        return await call_core_api(
+            "POST",
+            f"/api/v1/a2a/tasks/{task_id}/github-signal",
+            token=access_token,
+        )
+
+    @mcp.tool(
+        title="Check VC Issuance Eligibility",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
+    async def check_vc_issuance(
+        access_token: str,
+        task_id: str,
+    ) -> dict[str, Any]:
+        """Check if a task is eligible for VC credential issuance.
+
+        The VC Agent checks completion gate, verification status, and evidence
+        basis to recommend whether a credential should be issued.
+
+        Args:
+            access_token: JWT access token.
+            task_id: UUID of the task.
+        """
+        return await call_core_api(
+            "POST",
+            f"/api/v1/a2a/tasks/{task_id}/vc-check",
+            token=access_token,
+        )
+
+    @mcp.tool(
+        title="Issue Verified Credential",
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
+    )
+    async def issue_credential(
+        access_token: str,
+        actor_id: str,
+        project_id: str,
+        task_id: str,
+        credential_type: str = "task_completion",
+    ) -> dict[str, Any]:
+        """Issue a verifiable credential for a completed task.
+
+        The task must be completed with verified evidence to issue.
+
+        Args:
+            access_token: JWT access token.
+            actor_id: UUID of the actor receiving the credential.
+            project_id: UUID of the project.
+            task_id: UUID of the task.
+            credential_type: "task_completion" or "project_participation".
+        """
+        return await call_core_api(
+            "POST",
+            "/api/v1/credentials/issue",
+            token=access_token,
+            json_body={
+                "actor_id": actor_id,
+                "project_id": project_id,
+                "task_id": task_id,
+                "credential_type": credential_type,
+            },
+        )

@@ -14,8 +14,10 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.a2a_protocol import AgentResult, DelegationContract, TaskEnvelope
+from app.services.agents.github_signal_agent import run_github_signal_agent
 from app.services.agents.matching_agent import run_matching_agent
 from app.services.agents.review_prep_agent import run_review_prep_agent
+from app.services.agents.vc_agent import run_vc_agent
 from app.services.event_write_service import EventWriteService
 
 logger = logging.getLogger(__name__)
@@ -53,6 +55,33 @@ class CoordinationService:
         )
 
         result = await self._execute_delegation(contract, envelope, run_review_prep_agent)
+        await self._record_delegation(contract, result)
+        return result
+
+    async def delegate_github_signal(self, envelope: TaskEnvelope) -> AgentResult:
+        """Delegate to GitHub signal agent and record result."""
+        contract = DelegationContract(
+            envelope_id=envelope.envelope_id,
+            delegator_agent="platform_coordinator",
+            delegatee_agent="github_signal_agent",
+            delegation_type="github_signal",
+            requested_output="signal_snapshot",
+        )
+        result = await self._execute_delegation(contract, envelope, run_github_signal_agent)
+        await self._record_delegation(contract, result)
+        return result
+
+    async def delegate_vc_issuance(self, envelope: TaskEnvelope) -> AgentResult:
+        """Delegate to VC agent and record result."""
+        contract = DelegationContract(
+            envelope_id=envelope.envelope_id,
+            delegator_agent="platform_coordinator",
+            delegatee_agent="vc_agent",
+            delegation_type="vc_issuance",
+            requested_output="vc_recommendation",
+            human_checkpoint_required=True,
+        )
+        result = await self._execute_delegation(contract, envelope, run_vc_agent)
         await self._record_delegation(contract, result)
         return result
 
