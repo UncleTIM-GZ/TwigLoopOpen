@@ -22,6 +22,7 @@ from app.clients.core_api import close_client
 from app.tools.auth_tools import register_auth_tools
 from app.tools.context_tools import register_context_tools
 from app.tools.draft_tools import register_draft_tools
+from app.tools.evidence_tools import register_evidence_tools
 from app.tools.orchestration_tools import register_orchestration_tools
 from app.tools.preflight_tools import register_preflight_tools
 from app.tools.project_tools import register_project_tools
@@ -60,6 +61,7 @@ def create_mcp() -> FastMCP:
     register_preflight_tools(server)
     register_context_tools(server)
     register_draft_tools(server)
+    register_evidence_tools(server)
 
     _register_prompts(server)
     _register_resources(server)
