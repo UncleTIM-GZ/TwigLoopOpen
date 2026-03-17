@@ -97,13 +97,13 @@ class CoordinationService:
             result = await agent_fn(envelope, contract)
             contract.status = "completed"
             return result
-        except Exception as exc:
+        except Exception:
             logger.exception("Delegation %s failed", contract.delegation_id)
             contract.status = "failed"
             return AgentResult(
                 delegation_id=contract.delegation_id,
                 result_type="error",
-                summary=f"Agent failed: {exc}",
+                summary="Agent delegation failed. Please try again or contact support.",
                 confidence=0.0,
                 requires_human_review=True,
             )

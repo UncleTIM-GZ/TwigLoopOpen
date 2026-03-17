@@ -14,7 +14,10 @@ async def run_matching_agent(envelope: TaskEnvelope, contract: DelegationContrac
     # Rule-based matching logic
     task_type = envelope.constraints.get("task_type", "")
     main_role = envelope.constraints.get("main_role", "")
-    ewu = float(envelope.constraints.get("ewu", 0))
+    try:
+        ewu = float(envelope.constraints.get("ewu", 0))
+    except (ValueError, TypeError):
+        ewu = 0.0
 
     if task_type == "development":
         suggestions.append(f"This is a development task requiring a {main_role}.")

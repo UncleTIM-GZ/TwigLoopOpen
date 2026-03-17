@@ -12,7 +12,10 @@ from pydantic import BaseModel, Field
 
 
 class TaskEnvelope(BaseModel):
-    """Context bundle for agent collaboration around a task."""
+    """Context bundle for agent collaboration around a task.
+
+    All ID fields (envelope_id, task_id, project_id, etc.) expect UUID format strings.
+    """
 
     envelope_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     task_id: str
@@ -31,7 +34,10 @@ class TaskEnvelope(BaseModel):
 
 
 class DelegationContract(BaseModel):
-    """Contract between delegator and delegatee agent."""
+    """Contract between delegator and delegatee agent.
+
+    delegation_id and idempotency_key are auto-generated UUIDs.
+    """
 
     delegation_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     envelope_id: str

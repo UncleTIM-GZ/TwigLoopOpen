@@ -13,7 +13,10 @@ async def run_vc_agent(envelope: TaskEnvelope, contract: DelegationContract) -> 
     verification_status = envelope.signal_context.get("verification_status", "unverified")
     completion_mode = envelope.signal_context.get("completion_mode", "evidence_backed")
     evidence_count = envelope.signal_context.get("evidence_count", 0)
-    ewu = envelope.constraints.get("ewu", "0")
+    try:
+        ewu = float(envelope.constraints.get("ewu", 0))
+    except (ValueError, TypeError):
+        ewu = 0.0
     actor_id = envelope.signal_context.get("target_actor_id", "")
 
     reasons: list[str] = []
@@ -34,10 +37,14 @@ async def run_vc_agent(envelope: TaskEnvelope, contract: DelegationContract) -> 
         eligible = False
         reasons.append("No delivery evidence submitted")
 
-    # Legacy tasks get a pass
+    # Legacy tasks skip evidence/verification checks but still need completed status
     if completion_mode == "legacy":
-        eligible = True
-        reasons = ["Legacy task — issuance permitted without evidence verification"]
+        if task_status == "completed":
+            eligible = True
+            reasons = ["Legacy task — issuance permitted without evidence verification"]
+        else:
+            eligible = False
+            reasons = [f"Legacy task but not completed (current: {task_status})"]
 
     if eligible:
         decision = "recommend_issue"
