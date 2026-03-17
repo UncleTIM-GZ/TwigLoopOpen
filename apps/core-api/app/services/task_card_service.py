@@ -158,6 +158,16 @@ class TaskCardService:
 
         task = await self._repo.update_fields(task, {"status": target_status})
 
+        logger.info(
+            "Task status transitioned",
+            extra={
+                "task_id": str(task_id),
+                "old_status": old_status,
+                "new_status": target_status,
+                "actor_id": str(user.actor_id),
+            },
+        )
+
         try:
             await self._events.record_domain_event(
                 "task_status_changed",
@@ -236,6 +246,9 @@ class TaskCardService:
             rwu=task.rwu,
             swu=task.swu,
             has_reward=task.has_reward,
+            verification_status=task.verification_status,
+            completion_mode=task.completion_mode,
+            signal_count=task.signal_count,
             created_at=task.created_at,
             updated_at=task.updated_at,
         )

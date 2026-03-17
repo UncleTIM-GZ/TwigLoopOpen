@@ -101,6 +101,9 @@ async def list_my_tasks(
             rwu=t.rwu,
             swu=t.swu,
             has_reward=t.has_reward,
+            verification_status=t.verification_status,
+            completion_mode=t.completion_mode,
+            signal_count=t.signal_count,
             created_at=t.created_at,
             updated_at=t.updated_at,
         )

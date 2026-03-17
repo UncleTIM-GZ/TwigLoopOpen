@@ -57,5 +57,8 @@ class TaskCardResponse(BaseModel):
     rwu: Decimal | None = None
     swu: Decimal | None = None
     has_reward: bool
+    verification_status: str = "unverified"
+    completion_mode: str = "evidence_backed"
+    signal_count: int = 0
     created_at: datetime
     updated_at: datetime

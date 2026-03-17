@@ -81,6 +81,17 @@ class VerifiableCredentialService:
                 exc_info=True,
             )
 
+        logger.info(
+            "Credential issued",
+            extra={
+                "credential_id": str(vc.id),
+                "actor_id": str(req.actor_id),
+                "task_id": str(req.task_id) if req.task_id else None,
+                "credential_type": req.credential_type,
+                "issuance_basis": vc.issuance_basis,
+            },
+        )
+
         return self._to_response(vc)
 
     async def get_by_id(self, vc_id: uuid.UUID, user: CurrentUser) -> CredentialResponse:

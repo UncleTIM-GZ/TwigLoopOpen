@@ -2,7 +2,13 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { useProject, useWorkPackages, useSeats } from "@/hooks/use-projects";
+import {
+  useProject,
+  useWorkPackages,
+  useSeats,
+  useProjectTasks,
+} from "@/hooks/use-projects";
+import type { TaskCardResponse } from "@/types/api";
 
 const TYPE_LABELS: Record<string, string> = {
   general: "general",
@@ -25,6 +31,7 @@ export default function ProjectDetailPage({
   const { data: projRes, isLoading: projLoading } = useProject(id);
   const { data: wpRes } = useWorkPackages(id);
   const { data: seatRes } = useSeats(id);
+  const { data: taskRes } = useProjectTasks(id);
 
   if (projLoading) {
     return (
@@ -46,6 +53,13 @@ export default function ProjectDetailPage({
   }
 
   const workPackages = wpRes?.data ?? [];
+  const allTasks = taskRes?.data ?? [];
+  const tasksByWp: Record<string, TaskCardResponse[]> = {};
+  for (const task of allTasks) {
+    const wpId = task.work_package_id;
+    if (!tasksByWp[wpId]) tasksByWp[wpId] = [];
+    tasksByWp[wpId].push(task);
+  }
   const seats = seatRes?.data ?? [];
   const neededRoles = seats
     .filter((s) => s.status === "open" || !s.actor_id)
@@ -149,33 +163,43 @@ export default function ProjectDetailPage({
         <section className="mb-8">
           <SectionHeading>current task directions</SectionHeading>
           <div className="grid gap-2">
-            {topDirections.map((wp, i) => (
-              <div
-                key={wp.work_package_id}
-                className="bg-gray-900 border border-gray-800 rounded-lg p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <span className="text-xs font-mono text-gray-600 mt-0.5">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <div>
-                      <span className="font-mono text-sm text-gray-200">
-                        {wp.title}
+            {topDirections.map((wp, i) => {
+              const wpTasks = tasksByWp[wp.work_package_id] ?? [];
+              return (
+                <div
+                  key={wp.work_package_id}
+                  className="bg-gray-900 border border-gray-800 rounded-lg p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <span className="text-xs font-mono text-gray-600 mt-0.5">
+                        {String(i + 1).padStart(2, "0")}
                       </span>
-                      {wp.description && (
-                        <p className="text-xs text-gray-500 font-mono mt-1">
-                          {wp.description}
-                        </p>
-                      )}
+                      <div>
+                        <span className="font-mono text-sm text-gray-200">
+                          {wp.title}
+                        </span>
+                        {wp.description && (
+                          <p className="text-xs text-gray-500 font-mono mt-1">
+                            {wp.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
+                    <span className="text-xs font-mono text-gray-600 shrink-0">
+                      {wp.status}
+                    </span>
                   </div>
-                  <span className="text-xs font-mono text-gray-600 shrink-0">
-                    {wp.status}
-                  </span>
+                  {wpTasks.length > 0 && (
+                    <div className="mt-3 ml-8 flex flex-col gap-1.5">
+                      {wpTasks.map((task) => (
+                        <TaskBrief key={task.task_id} task={task} />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
@@ -185,19 +209,31 @@ export default function ProjectDetailPage({
         <section className="mb-8">
           <SectionHeading>all work packages</SectionHeading>
           <div className="grid gap-2">
-            {workPackages.map((wp) => (
-              <div
-                key={wp.work_package_id}
-                className="bg-gray-900 border border-gray-800 rounded-lg p-3 flex justify-between items-center"
-              >
-                <span className="font-mono text-sm text-gray-300">
-                  {wp.title}
-                </span>
-                <span className="text-xs font-mono text-gray-600">
-                  {wp.status}
-                </span>
-              </div>
-            ))}
+            {workPackages.map((wp) => {
+              const wpTasks = tasksByWp[wp.work_package_id] ?? [];
+              return (
+                <div
+                  key={wp.work_package_id}
+                  className="bg-gray-900 border border-gray-800 rounded-lg p-3"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-mono text-sm text-gray-300">
+                      {wp.title}
+                    </span>
+                    <span className="text-xs font-mono text-gray-600">
+                      {wp.status}
+                    </span>
+                  </div>
+                  {wpTasks.length > 0 && (
+                    <div className="mt-2 flex flex-col gap-1.5">
+                      {wpTasks.map((task) => (
+                        <TaskBrief key={task.task_id} task={task} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -296,5 +332,44 @@ function InfoPill({ label, value }: { label: string; value: string }) {
       <span className="text-gray-600">{label}:</span>{" "}
       <span className="text-gray-300">{value}</span>
     </span>
+  );
+}
+
+const TASK_VERIFICATION_COLORS: Record<string, string> = {
+  unverified: "text-gray-500 bg-gray-800",
+  pending: "text-yellow-400 bg-yellow-400/10",
+  verified: "text-green-400 bg-green-400/10",
+  rejected: "text-red-400 bg-red-400/10",
+};
+
+function TaskBrief({ task }: { task: TaskCardResponse }) {
+  const verificationStyle =
+    TASK_VERIFICATION_COLORS[task.verification_status] ??
+    "text-gray-500 bg-gray-800";
+
+  return (
+    <div className="flex items-center justify-between gap-3 text-xs font-mono bg-gray-800/50 rounded px-3 py-1.5">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-gray-300 truncate">{task.title}</span>
+        <span className="text-gray-600">|</span>
+        <span className="text-gray-500">{task.status}</span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="text-cyan-400">ewu:{task.ewu}</span>
+        <span className={`px-1.5 py-0.5 rounded ${verificationStyle}`}>
+          {task.verification_status}
+        </span>
+        {task.signal_count > 0 && (
+          <span className="text-green-400/70">
+            {task.signal_count}sig
+          </span>
+        )}
+        {task.completion_mode === "legacy" && (
+          <span className="text-orange-400/70 bg-orange-400/10 px-1.5 py-0.5 rounded">
+            legacy
+          </span>
+        )}
+      </div>
+    </div>
   );
 }

@@ -83,6 +83,16 @@ class EvidenceService:
                 exc_info=True,
             )
 
+        logger.info(
+            "Evidence submitted",
+            extra={
+                "task_id": str(task_id),
+                "actor_id": str(user.actor_id),
+                "evidence_type": req.evidence_type,
+                "evidence_id": str(evidence.id),
+            },
+        )
+
         return self._to_evidence_response(evidence)
 
     async def list_evidence(self, task_id: uuid.UUID) -> list[EvidenceResponse]:
@@ -160,6 +170,16 @@ class EvidenceService:
                 user.actor_id,
                 exc_info=True,
             )
+
+        logger.info(
+            "Task verification decided",
+            extra={
+                "task_id": str(task_id),
+                "reviewer_id": str(user.actor_id),
+                "decision": req.decision,
+                "verification_status": task.verification_status,
+            },
+        )
 
         return self._to_verification_response(verification)
 

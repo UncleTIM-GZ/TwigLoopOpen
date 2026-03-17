@@ -8,6 +8,7 @@ import type {
   ProjectResponse,
   WorkPackageResponse,
   SeatResponse,
+  TaskCardResponse,
 } from "@/types/api";
 
 export function useProjects(filters?: Record<string, string>) {
@@ -47,6 +48,17 @@ export function useSeats(projectId: string) {
     queryFn: () =>
       apiClient<ApiResponse<SeatResponse[]>>(
         `/api/v1/projects/${projectId}/seats`,
+      ),
+    enabled: !!projectId,
+  });
+}
+
+export function useProjectTasks(projectId: string) {
+  return useQuery({
+    queryKey: ["project-tasks", projectId],
+    queryFn: () =>
+      apiClient<ApiResponse<TaskCardResponse[]>>(
+        `/api/v1/projects/${projectId}/tasks`,
       ),
     enabled: !!projectId,
   });

@@ -141,6 +141,9 @@ export interface TaskCardResponse {
   rwu: number | null;
   swu: number | null;
   has_reward: boolean;
+  verification_status: string;
+  completion_mode: string;
+  signal_count: number;
   created_at: string;
 }
 
