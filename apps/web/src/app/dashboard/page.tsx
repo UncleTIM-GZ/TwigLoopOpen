@@ -168,6 +168,8 @@ export default function DashboardPage() {
           quick links
         </h2>
         <div className="flex flex-wrap gap-3">
+          <QuickLink href="/dashboard/tasks" label="my tasks" />
+          <QuickLink href="/dashboard/applications" label="my applications" />
           <QuickLink href="/dashboard/profile" label="edit profile" />
           <QuickLink href="/dashboard/credentials" label="my credentials" />
           <QuickLink href="/create" label="new project" />

@@ -9,8 +9,11 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException, Request
 from shared_events import Subjects, publish_event
 from shared_schemas import ApiResponse
+from sqlalchemy import select
 
 from app.db.session import async_session_factory
+from app.models.task_card import TaskCard
+from app.models.work_package import WorkPackage
 from app.services.signal_service import SignalService
 from app.services.source_service import SourceService
 
@@ -58,6 +61,25 @@ def _extract_source_ref(event_type: str, payload: dict) -> str | None:  # type: 
         issue = payload.get("issue", {})
         number = issue.get("number")
         return f"Issue#{number}" if number else None
+    return None
+
+
+def _extract_pr_url(event_type: str, payload: dict) -> str | None:  # type: ignore[type-arg]
+    """Extract pull request HTML URL from a GitHub webhook payload."""
+    if event_type == "pull_request":
+        pr = payload.get("pull_request", {})
+        return pr.get("html_url")  # type: ignore[no-any-return]
+    return None
+
+
+def _extract_commit_sha(event_type: str, payload: dict) -> str | None:  # type: ignore[type-arg]
+    """Extract the latest commit SHA from a GitHub webhook payload."""
+    if event_type == "push":
+        return payload.get("after")  # type: ignore[no-any-return]
+    if event_type == "pull_request":
+        pr = payload.get("pull_request", {})
+        head = pr.get("head", {})
+        return head.get("sha")  # type: ignore[no-any-return]
     return None
 
 
@@ -142,6 +164,32 @@ async def github_webhook(request: Request) -> ApiResponse[dict[str, str]]:
                 payload=_build_signal_payload(event_type, payload),
                 occurred_at=datetime.now(UTC),
             )
+
+            # Write back signal data to matching tasks
+            pr_url = _extract_pr_url(event_type, payload)
+            commit_sha = _extract_commit_sha(event_type, payload)
+            if repo_url:
+                stmt = (
+                    select(TaskCard)
+                    .join(WorkPackage, TaskCard.work_package_id == WorkPackage.id)
+                    .where(WorkPackage.project_id == source.project_id)
+                    .where(TaskCard.repo_url == repo_url)
+                )
+                result = await session.execute(stmt)
+                matching_tasks = list(result.scalars().all())
+                for task in matching_tasks:
+                    task.signal_count = task.signal_count + 1
+                    if pr_url:
+                        task.pr_url = pr_url
+                    if commit_sha:
+                        task.latest_commit_sha = commit_sha
+                if matching_tasks:
+                    _logger.info(
+                        "Updated %d tasks with signal data for repo %s",
+                        len(matching_tasks),
+                        repo_url,
+                    )
+
             await session.commit()
         except Exception:
             await session.rollback()
