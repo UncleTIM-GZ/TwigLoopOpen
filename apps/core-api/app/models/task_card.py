@@ -60,3 +60,10 @@ class TaskCard(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verified_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+    # GitHub signal 预留字段 (Phase 4)
+    repo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    branch_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    pr_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    latest_commit_sha: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    signal_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

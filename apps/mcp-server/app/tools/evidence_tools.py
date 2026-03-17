@@ -13,9 +13,7 @@ def register_evidence_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         title="Submit Delivery Evidence",
-        annotations=ToolAnnotations(
-            readOnlyHint=False, idempotentHint=False, openWorldHint=False
-        ),
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
     )
     async def submit_evidence(
         access_token: str,
@@ -60,9 +58,7 @@ def register_evidence_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         title="Get Task Evidence",
-        annotations=ToolAnnotations(
-            readOnlyHint=True, idempotentHint=True, openWorldHint=False
-        ),
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
     )
     async def get_task_evidence(
         task_id: str,
@@ -79,9 +75,7 @@ def register_evidence_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         title="Verify Task Evidence",
-        annotations=ToolAnnotations(
-            readOnlyHint=False, idempotentHint=False, openWorldHint=False
-        ),
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
     )
     async def verify_task(
         access_token: str,
@@ -112,9 +106,7 @@ def register_evidence_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         title="Get Task Verifications",
-        annotations=ToolAnnotations(
-            readOnlyHint=True, idempotentHint=True, openWorldHint=False
-        ),
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
     )
     async def get_task_verifications(
         task_id: str,
@@ -131,9 +123,7 @@ def register_evidence_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         title="Transition Task Status",
-        annotations=ToolAnnotations(
-            readOnlyHint=False, idempotentHint=False, openWorldHint=False
-        ),
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
     )
     async def transition_task_status(
         access_token: str,
@@ -161,9 +151,7 @@ def register_evidence_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         title="Calculate Task EWU",
-        annotations=ToolAnnotations(
-            readOnlyHint=False, idempotentHint=True, openWorldHint=False
-        ),
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=True, openWorldHint=False),
     )
     async def calculate_ewu(
         access_token: str,
@@ -203,4 +191,52 @@ def register_evidence_tools(mcp: FastMCP) -> None:
                 "criticality": criticality,
                 "collaboration_complexity": collaboration_complexity,
             },
+        )
+
+    @mcp.tool(
+        title="Get My Tasks",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
+    async def get_my_tasks(
+        access_token: str,
+        page: int = 1,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        """List tasks assigned to you through your project seats.
+
+        Shows tasks from projects where you have been accepted as a collaborator.
+
+        Args:
+            access_token: JWT access token.
+            page: Page number.
+            limit: Items per page.
+        """
+        return await call_core_api(
+            "GET",
+            "/api/v1/me/tasks",
+            token=access_token,
+            params={"page": str(page), "limit": str(limit)},
+        )
+
+    @mcp.tool(
+        title="Get My Applications",
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False),
+    )
+    async def get_my_applications(
+        access_token: str,
+        page: int = 1,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        """List your project applications and their current status.
+
+        Args:
+            access_token: JWT access token.
+            page: Page number.
+            limit: Items per page.
+        """
+        return await call_core_api(
+            "GET",
+            "/api/v1/me/applications",
+            token=access_token,
+            params={"page": str(page), "limit": str(limit)},
         )
