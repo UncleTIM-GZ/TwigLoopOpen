@@ -117,3 +117,4 @@ See [SECURITY.md](SECURITY.md). **Do NOT open public issues for vulnerabilities.
 <!-- webhook-test: 2026-03-18T05:00:30Z -->
 <!-- signal-test: 1773810198 -->
 <!-- live-signal: 1773811660 -->
+<!-- signal-final: 1773812672 -->
