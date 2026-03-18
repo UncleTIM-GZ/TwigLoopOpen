@@ -115,3 +115,4 @@ See [SECURITY.md](SECURITY.md). **Do NOT open public issues for vulnerabilities.
 [AGPL-3.0](LICENSE) — Modifications must remain open source, even when deployed as a hosted service.
 
 <!-- webhook-test: 2026-03-18T05:00:30Z -->
+<!-- signal-test: 1773810198 -->
